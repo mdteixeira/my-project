@@ -211,7 +211,7 @@ const Board = ({ cards, setCards, user }: any) => {
                 setCards={setCards}
                 user={user}
             />
-            <BurnBarrel setCards={setCards} />
+            <BurnBarrel setCards={setCards} user={user} />
         </div>
     );
 };
@@ -221,6 +221,7 @@ const Column = ({ title, headingColor, cards, column, setCards, user }) => {
 
     const handleDragStart = (e, card) => {
         e.dataTransfer.setData('cardId', card.id);
+        e.dataTransfer.setData('cardOwner', card.username);
     };
 
     const handleDragEnd = (e) => {
@@ -353,7 +354,7 @@ const Card = ({ title, id, column, handleDragStart, user }) => {
                 draggable="true"
                 onDragStart={(e) => handleDragStart(e, { title, id, column })}
                 className="cursor-grab rounded border border-neutral-700 bg-neutral-800 p-3 active:cursor-grabbing space-y-2">
-                <p className="text-neutral-100">{title}</p>
+                <p className={!user.hidden ? "text-neutral-100" : 'bg-neutral-100 brightness-50 rounded-sm w-auto text-transparent'}>{title}</p>
                 <div className="flex items-center space-x-1.5 text-neutral-400">
                     <span className={`h-2 w-2 rounded-full bg-${user.color}-500`}></span>
                     <small>{user.name}</small>
@@ -373,11 +374,12 @@ const DropIndicator = ({ beforeId, column }) => {
     );
 };
 
-const BurnBarrel = ({ setCards }) => {
+const BurnBarrel = ({ setCards, user }) => {
     const [active, setActive] = useState(false);
 
     const handleDragOver = (e) => {
         e.preventDefault();
+        if (e.dataTransfer.getData('cardOwner') !== user.name) return;
         setActive(true);
     };
 
@@ -387,6 +389,9 @@ const BurnBarrel = ({ setCards }) => {
 
     const handleDragEnd = (e) => {
         const cardId = e.dataTransfer.getData('cardId');
+        const cardOwner = e.dataTransfer.getData('cardOwner');
+
+        if (cardOwner !== user.name) return;
 
         setCards((pv) => pv.filter((c) => c.id !== cardId));
 
