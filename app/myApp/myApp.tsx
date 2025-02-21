@@ -332,7 +332,7 @@ const Column = ({ title, headingColor, cards, column, setCards, user }) => {
                 onDrop={handleDragEnd}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                className={`h-full max-h-[80vh] w-full overflow-y-auto transition-colors ${
+                className={`h-full max-h-[80vh] w-full overflow-y-auto overflow-x-hidden transition-colors ${
                     active ? 'bg-neutral-800/50' : 'bg-neutral-800/0'
                 }`}>
                 {filteredCards.map((c) => {
