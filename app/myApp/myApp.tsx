@@ -1,7 +1,59 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { FiPlus, FiTrash, FiTrash2 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { DEFAULT_CARDS } from './DEFAULT_CARDS';
+import { getInitials } from './getInitials';
+
+function UserIcon(props) {
+    return (
+        <div
+            className={
+                props.filteredUser?.name === props.user.name
+                    ? `flex items-center border space-x-1.5 bg-${props.user.color}-500 h-12 w-12 rounded-full grid place-items-center ${props.user.color}-700 cursor-pointer`
+                    : `flex items-center space-x-1.5 bg-${props.user.color}-500 h-12 w-12 rounded-full grid place-items-center ${props.user.color}-700 cursor-pointer`
+            }
+            onClick={() => {
+                if (props.filteredUser?.name === props.user.name) {
+                    props.setFilteredUser(null);
+                    props.setIsFiltered(false);
+                    return props.setCards(props.allCards);
+                }
+
+                props.setFilteredUser(props.user);
+                if (!props.isFiltered) props.setAllCards(props.cards);
+                props.setIsFiltered(true);
+                props.setCards(
+                    props.allCards.filter((card) => {
+                        return card.user.name === props.user.name;
+                    })
+                );
+            }}>
+            <p>{getInitials(props.user.name)}</p>
+        </div>
+    );
+}
+
+function UsersFilter(props) {
+    return (
+        <div className="flex space-x-3">
+            {props.users.map((user: any) => {
+                return (
+                    <UserIcon
+                        key={user.name}
+                        cards={props.cards}
+                        setCards={props.setCards}
+                        allCards={props.allCards}
+                        setAllCards={props.setAllCards}
+                        isFiltered={props.isFiltered}
+                        setIsFiltered={props.setIsFiltered}
+                        filteredUser={props.filteredUser}
+                        setFilteredUser={props.setFilteredUser}
+                        user={user}></UserIcon>
+                );
+            })}
+        </div>
+    );
+}
 
 export const MyApp = () => {
     const [cards, setCards] = useState(DEFAULT_CARDS);
@@ -49,136 +101,122 @@ export const MyApp = () => {
         setUsers(_users);
     }, []);
 
+    useEffect(() => {}, [user]);
+
+    const userScreen = (
+        <form
+            className="grid place-content-center h-screen"
+            onSubmit={(e) => {
+                e.preventDefault();
+                if (!userColor || !username)
+                    return setError(
+                        `${
+                            !userColor && !username
+                                ? 'Username e cor'
+                                : !username
+                                ? 'Username'
+                                : 'Cor'
+                        } faltando!`
+                    );
+                setUser({ name: username, color: userColor });
+            }}>
+            <h2>Qual é seu nome?</h2>
+            <input
+                onChange={(e) => {
+                    setUsername(e.target.value);
+                }}
+                className="border-neutral-700 border rounded bg-neutral-900 p-2"
+                type="text"
+            />
+            <div className="space-y-4 mt-6">
+                <h2>Qual cor?</h2>
+                <div className="grid grid-cols-5 justify-around gap-5">
+                    {COLORS.map((color) => (
+                        <div
+                            onClick={() => setUserColor(color)}
+                            className={
+                                userColor === color
+                                    ? `size-12 rounded-full cursor-pointer hover:brightness-50 bg-${color}-500 border-2`
+                                    : `size-12 rounded-full cursor-pointer hover:brightness-50 bg-${color}-500`
+                            }></div>
+                    ))}
+                </div>
+                <button className="bg-white font-semibold hover:brightness-75 cursor-pointer mt-3 text-black p-2 rounded-xl px-4">
+                    Prosseguir
+                </button>
+                {<span className="text-red-500 ml-4">{error}</span>}
+            </div>
+        </form>
+    );
+
     return (
         <>
             <span className="bg-red-500 bg-orange-500 bg-amber-500 bg-yellow-500 bg-lime-500 bg-green-500 bg-emerald-500 bg-teal-500 bg-cyan-500 bg-sky-500 bg-blue-500 bg-indigo-500 bg-violet-500 bg-purple-500 bg-fuchsia-500 bg-pink-500 bg-rose-500"></span>
             {user ? (
                 <div className="h-screen w-full bg-neutral-900 text-neutral-50">
-                    <div className="flex space-x-3 p-2">
-                        {users.map((user: any) => {
-                            return (
-                                <div
-                                    className={
-                                        filteredUser?.name === user.name
-                                            ? `flex items-center border space-x-1.5 bg-${user.color}-500 h-12 w-12 rounded-full grid place-items-center ${user.color}-700 cursor-pointer`
-                                            : `flex items-center space-x-1.5 bg-${user.color}-500 h-12 w-12 rounded-full grid place-items-center ${user.color}-700 cursor-pointer`
-                                    }
-                                    onClick={() => {
-                                        if (filteredUser?.name === user.name) {
-                                            setFilteredUser(null);
-                                            setIsFiltered(false);
-                                            return setCards(allCards);
-                                        }
-
-                                        setFilteredUser(user);
-                                        if (!isFiltered) setAllCards(cards);
-                                        setIsFiltered(true);
-                                        setCards(
-                                            allCards.filter((card) => {
-                                                return card.user.name === user.name;
-                                            })
-                                        );
-                                    }}
-                                    key={user.name}>
-                                    <p>{getInitials(user.name)}</p>
-                                </div>
-                            );
-                        })}
+                    <div className='h-20 flex items-center justify-between px-10'>
+                        <UsersFilter
+                            cards={cards}
+                            setCards={setCards}
+                            allCards={allCards}
+                            setAllCards={setAllCards}
+                            isFiltered={isFiltered}
+                            setIsFiltered={setIsFiltered}
+                            users={users}
+                            filteredUser={filteredUser}
+                            setFilteredUser={setFilteredUser}></UsersFilter>
+                            <button>Exportar para excel</button>
                     </div>
-                    <Board cards={cards} setCards={setCards} />
+                    <Board cards={cards} setCards={setCards} user={user} />
                 </div>
             ) : (
-                <form
-                    className="grid place-content-center h-screen"
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        if (!userColor || !username)
-                            return setError(
-                                `${
-                                    !userColor && !username
-                                        ? 'Username e cor'
-                                        : !username
-                                        ? 'Username'
-                                        : 'Cor'
-                                } faltando!`
-                            );
-                        setUser({ name: username, color: userColor });
-                    }}>
-                    <h2>Qual é seu nome?</h2>
-                    <input
-                        onChange={(e) => {
-                            setUsername(e.target.value);
-                        }}
-                        className="border-neutral-700 border rounded bg-neutral-900 p-2"
-                        type="text"
-                    />
-                    <div className="space-y-4 mt-6">
-                        <h2>Qual cor?</h2>
-                        <div className="grid grid-cols-5 justify-around gap-5">
-                            {COLORS.map((color) => (
-                                <div
-                                    onClick={() => setUserColor(color)}
-                                    className={
-                                        userColor === color
-                                            ? `size-12 rounded-full cursor-pointer hover:brightness-50 bg-${color}-500 border-2`
-                                            : `size-12 rounded-full cursor-pointer hover:brightness-50 bg-${color}-500`
-                                    }></div>
-                            ))}
-                        </div>
-                        <button className="bg-white font-semibold hover:brightness-75 cursor-pointer mt-3 text-black p-2 rounded-xl px-4">
-                            Prosseguir
-                        </button>
-                        {<span className='text-red-500 ml-4'>{error}</span>}
-                    </div>
-                </form>
+                userScreen
             )}
         </>
     );
 };
 
-function getInitials(name: string) {
-    return name.split(' ').map((partial) => {
-        return partial.substring(0, 1);
-    });
-}
-
-const Board = ({ cards, setCards }: any) => {
+const Board = ({ cards, setCards, user }: any) => {
     return (
-        <div className="grid grid-cols-4 h-full w-full gap-3 overflow-y-scroll p-12">
+        <div className="grid grid-cols-4 w-full gap-3 px-12 overflow-hidden">
             <Column
-                title="Backlog"
-                column="backlog"
-                headingColor="text-neutral-500"
+                title="Bom e devemos Continuar"
+                column="good"
+                headingColor="text-emerald-300"
                 cards={cards}
                 setCards={setCards}
+                user={user}
             />
             <Column
-                title="TODO"
-                column="todo"
+                title="Podemos melhorar"
+                column="improve"
                 headingColor="text-yellow-200"
                 cards={cards}
                 setCards={setCards}
+                user={user}
             />
             <Column
-                title="In progress"
-                column="doing"
-                headingColor="text-blue-200"
+                title="Devemos parar"
+                column="stop"
+                headingColor="text-red-300"
                 cards={cards}
                 setCards={setCards}
+                user={user}
             />
             <Column
-                title="Complete"
-                column="done"
-                headingColor="text-emerald-200"
+                title="Devemos iniciar"
+                column="start"
+                headingColor="text-teal-200"
                 cards={cards}
                 setCards={setCards}
+                user={user}
             />
             <BurnBarrel setCards={setCards} />
         </div>
     );
 };
 
-const Column = ({ title, headingColor, cards, column, setCards }) => {
+const Column = ({ title, headingColor, cards, column, setCards, user }) => {
     const [active, setActive] = useState(false);
 
     const handleDragStart = (e, card) => {
@@ -281,25 +319,25 @@ const Column = ({ title, headingColor, cards, column, setCards }) => {
     const filteredCards = cards.filter((c) => c.column === column);
 
     return (
-        <div className="w-full shrink-0">
+        <div className="w-full shrink-0 h-full">
             <div className="mb-3 flex items-center justify-between">
                 <h3 className={`font-medium ${headingColor}`}>{title}</h3>
                 <span className="rounded text-sm text-neutral-400">
                     {filteredCards.length}
                 </span>
             </div>
+            <AddCard column={column} setCards={setCards} user={user} />
             <div
                 onDrop={handleDragEnd}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                className={`h-full w-full transition-colors ${
+                className={`h-full max-h-[80vh] w-full overflow-y-auto transition-colors ${
                     active ? 'bg-neutral-800/50' : 'bg-neutral-800/0'
                 }`}>
                 {filteredCards.map((c) => {
                     return <Card key={c.id} {...c} handleDragStart={handleDragStart} />;
                 })}
                 <DropIndicator beforeId={null} column={column} />
-                <AddCard column={column} setCards={setCards} />
             </div>
         </div>
     );
@@ -370,7 +408,7 @@ const BurnBarrel = ({ setCards }) => {
     );
 };
 
-const AddCard = ({ column, setCards }) => {
+const AddCard = ({ column, setCards, user }) => {
     const [text, setText] = useState('');
     const [adding, setAdding] = useState(false);
 
@@ -398,19 +436,19 @@ const AddCard = ({ column, setCards }) => {
                     <textarea
                         onChange={(e) => setText(e.target.value)}
                         autoFocus
-                        placeholder="Add new task..."
+                        placeholder="Adicionar Card..."
                         className="w-full rounded border border-violet-400 bg-violet-400/20 p-3 text-sm text-neutral-50 placeholder-violet-300 focus:outline-0"
                     />
-                    <div className="mt-1.5 flex items-center justify-end gap-1.5">
+                    <div className="my-1.5 flex items-center justify-end gap-1.5">
                         <button
                             onClick={() => setAdding(false)}
                             className="px-3 py-1.5 text-xs text-neutral-400 transition-colors hover:text-neutral-50">
-                            Close
+                            Fechar
                         </button>
                         <button
                             type="submit"
                             className="flex items-center gap-1.5 rounded bg-neutral-50 px-3 py-1.5 text-xs text-neutral-950 transition-colors hover:bg-neutral-300">
-                            <span>Add</span>
+                            <span>Adicionar</span>
                             <FiPlus />
                         </button>
                     </div>
