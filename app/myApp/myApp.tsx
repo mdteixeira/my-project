@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { FiPlus, FiTrash, FiTrash2 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import { DEFAULT_CARDS } from './DEFAULT_CARDS';
 
 export const MyApp = () => {
     const [cards, setCards] = useState(DEFAULT_CARDS);
@@ -8,6 +9,7 @@ export const MyApp = () => {
     const [isFiltered, setIsFiltered] = useState(false);
     const [users, setUsers] = useState<{ name: string; color: string }[]>([]);
     const [user, setUser] = useState<{ name: string; color: string } | null>(null);
+    const [userColor, setUserColor] = useState<string>('');
 
     const [username, setUsername] = useState<string>(``);
     const [filteredUser, setFilteredUser] = useState<{
@@ -66,14 +68,14 @@ export const MyApp = () => {
                         })}
                     </div>
                     <Board cards={cards} setCards={setCards} />
-                    <span className="bg-emerald-500 bg-red-500 bg-amber-500 bg-sky-500"></span>
                 </div>
             ) : (
                 <form
                     className="grid place-content-center h-screen"
                     onSubmit={(e) => {
-                        e.preventDefault()
-                        setUser({ name: username, color: `emerald` });
+                        e.preventDefault();
+                        if (!userColor) return;
+                        setUser({ name: username, color: userColor });
                     }}>
                     <h2>Qual é seu nome?</h2>
                     <input
@@ -83,6 +85,35 @@ export const MyApp = () => {
                         className="border-neutral-700 border rounded bg-neutral-900 p-2"
                         type="text"
                     />
+                    <div className="mt-6">
+                        <h2>Qual cor?</h2>
+                        <div className="grid grid-cols-4 justify-around gap-5">
+                            <button
+                                onClick={() => setUserColor('emerald')}
+                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-emerald-500"></button>
+                            <button
+                                onClick={() => setUserColor('red')}
+                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-red-500"></button>
+                            <button
+                                onClick={() => setUserColor('amber')}
+                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-amber-500"></button>
+                            <button
+                                onClick={() => setUserColor('sky')}
+                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-sky-500"></button>
+                            <button
+                                onClick={() => setUserColor('pink')}
+                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-pink-500"></button>
+                            <button
+                                onClick={() => setUserColor('fuchsia')}
+                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-fuchsia-500"></button>
+                            <button
+                                onClick={() => setUserColor('rose')}
+                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-rose-500"></button>
+                            <button
+                                onClick={() => setUserColor('teal')}
+                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-teal-500"></button>
+                        </div>
+                    </div>
                 </form>
             )}
         </>
@@ -336,8 +367,7 @@ const AddCard = ({ column, setCards }) => {
             column,
             title: text.trim(),
             id: Math.random().toString(),
-            user: { name: 'aaa', color: 'emerald' },
-
+            user,
         };
 
         setCards((pv) => [...pv, newCard]);
@@ -381,71 +411,3 @@ const AddCard = ({ column, setCards }) => {
         </>
     );
 };
-
-const DEFAULT_CARDS = [
-    // BACKLOG
-    {
-        user: { name: 'Matheus Teixeira', color: 'emerald' },
-        title: 'Look into render bug in dashboard',
-        id: '1',
-        column: 'backlog',
-    },
-    {
-        user: { name: 'Felipe Santana', color: 'amber' },
-        title: 'SOX compliance checklist',
-        id: '2',
-        column: 'backlog',
-    },
-    {
-        user: { name: 'Felipe Kinoshita', color: 'red' },
-        title: '[SPIKE] Migrate to Azure',
-        id: '3',
-        column: 'backlog',
-    },
-    {
-        user: { name: 'Thayna Campos', color: 'sky' },
-        title: 'Document Notifications service',
-        id: '4',
-        column: 'backlog',
-    },
-    // TODO
-    {
-        user: { name: 'Matheus Teixeira', color: 'emerald' },
-        title: 'Research DB options for new microservice',
-        id: '5',
-        column: 'todo',
-    },
-    {
-        user: { name: 'Matheus Teixeira', color: 'emerald' },
-        title: 'Postmortem for outage',
-        id: '6',
-        column: 'todo',
-    },
-    {
-        user: { name: 'Matheus Teixeira', color: 'emerald' },
-        title: 'Sync with product on Q3 roadmap',
-        id: '7',
-        column: 'todo',
-    },
-
-    // DOING
-    {
-        user: { name: 'Matheus Teixeira', color: 'emerald' },
-        title: 'Refactor context providers to use Zustand',
-        id: '8',
-        column: 'doing',
-    },
-    {
-        user: { name: 'Matheus Teixeira', color: 'emerald' },
-        title: 'Add logging to daily CRON',
-        id: '9',
-        column: 'doing',
-    },
-    // DONE
-    {
-        user: { name: 'Matheus Teixeira', color: 'emerald' },
-        title: 'Set up DD dashboards for Lambda listener',
-        id: '10',
-        column: 'done',
-    },
-];
