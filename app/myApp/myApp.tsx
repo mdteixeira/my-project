@@ -11,6 +11,23 @@ export const MyApp = () => {
     const [user, setUser] = useState<{ name: string; color: string } | null>(null);
     const [userColor, setUserColor] = useState<string>('');
 
+    const [error, setError] = useState<string>('');
+
+    const COLORS = [
+        'red',
+        'amber',
+        'emerald',
+        'teal',
+        'cyan',
+        'sky',
+        'blue',
+        'violet',
+        'purple',
+        'fuchsia',
+        'pink',
+        'rose',
+    ];
+
     const [username, setUsername] = useState<string>(``);
     const [filteredUser, setFilteredUser] = useState<{
         name: string;
@@ -34,6 +51,7 @@ export const MyApp = () => {
 
     return (
         <>
+            <span className="bg-red-500 bg-orange-500 bg-amber-500 bg-yellow-500 bg-lime-500 bg-green-500 bg-emerald-500 bg-teal-500 bg-cyan-500 bg-sky-500 bg-blue-500 bg-indigo-500 bg-violet-500 bg-purple-500 bg-fuchsia-500 bg-pink-500 bg-rose-500"></span>
             {user ? (
                 <div className="h-screen w-full bg-neutral-900 text-neutral-50">
                     <div className="flex space-x-3 p-2">
@@ -74,7 +92,16 @@ export const MyApp = () => {
                     className="grid place-content-center h-screen"
                     onSubmit={(e) => {
                         e.preventDefault();
-                        if (!userColor) return;
+                        if (!userColor || !username)
+                            return setError(
+                                `${
+                                    !userColor && !username
+                                        ? 'Username e cor'
+                                        : !username
+                                        ? 'Username'
+                                        : 'Cor'
+                                } faltando!`
+                            );
                         setUser({ name: username, color: userColor });
                     }}>
                     <h2>Qual é seu nome?</h2>
@@ -85,34 +112,23 @@ export const MyApp = () => {
                         className="border-neutral-700 border rounded bg-neutral-900 p-2"
                         type="text"
                     />
-                    <div className="mt-6">
+                    <div className="space-y-4 mt-6">
                         <h2>Qual cor?</h2>
-                        <div className="grid grid-cols-4 justify-around gap-5">
-                            <button
-                                onClick={() => setUserColor('emerald')}
-                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-emerald-500"></button>
-                            <button
-                                onClick={() => setUserColor('red')}
-                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-red-500"></button>
-                            <button
-                                onClick={() => setUserColor('amber')}
-                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-amber-500"></button>
-                            <button
-                                onClick={() => setUserColor('sky')}
-                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-sky-500"></button>
-                            <button
-                                onClick={() => setUserColor('pink')}
-                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-pink-500"></button>
-                            <button
-                                onClick={() => setUserColor('fuchsia')}
-                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-fuchsia-500"></button>
-                            <button
-                                onClick={() => setUserColor('rose')}
-                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-rose-500"></button>
-                            <button
-                                onClick={() => setUserColor('teal')}
-                                className="size-12 rounded-full cursor-pointer hover:brightness-50 bg-teal-500"></button>
+                        <div className="grid grid-cols-5 justify-around gap-5">
+                            {COLORS.map((color) => (
+                                <div
+                                    onClick={() => setUserColor(color)}
+                                    className={
+                                        userColor === color
+                                            ? `size-12 rounded-full cursor-pointer hover:brightness-50 bg-${color}-500 border-2`
+                                            : `size-12 rounded-full cursor-pointer hover:brightness-50 bg-${color}-500`
+                                    }></div>
+                            ))}
                         </div>
+                        <button className="bg-white font-semibold hover:brightness-75 cursor-pointer mt-3 text-black p-2 rounded-xl px-4">
+                            Prosseguir
+                        </button>
+                        {<span className='text-red-500 ml-4'>{error}</span>}
                     </div>
                 </form>
             )}
