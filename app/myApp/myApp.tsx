@@ -1,10 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { FiPlus, FiTrash, FiTrash2 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { DEFAULT_CARDS } from './DEFAULT_CARDS';
 import { getInitials } from './getInitials';
+import SocketService from './Socket';
+import type { Card, User } from 'types';
 
-function UserIcon(props) {
+function UserIcon(props: { filteredUser: { name: string, color: string }, setFilteredUser: React.Dispatch<React.SetStateAction<{
+    name: string;
+    color: string;
+} | null>> , user: { name: string; color: string } }) {
     return (
         <div
             className={
@@ -13,20 +17,10 @@ function UserIcon(props) {
                     : `flex items-center space-x-1.5 bg-${props.user.color}-500 h-12 w-12 rounded-full grid place-items-center ${props.user.color}-700 cursor-pointer`
             }
             onClick={() => {
-                if (props.filteredUser?.name === props.user.name) {
-                    props.setFilteredUser(null);
-                    props.setIsFiltered(false);
-                    return props.setCards(props.allCards);
-                }
+                if (props.filteredUser?.name === props.user.name)
+                    return props.setFilteredUser(null);
 
                 props.setFilteredUser(props.user);
-                if (!props.isFiltered) props.setAllCards(props.cards);
-                props.setIsFiltered(true);
-                props.setCards(
-                    props.allCards.filter((card) => {
-                        return card.user.name === props.user.name;
-                    })
-                );
             }}>
             <p>{getInitials(props.user.name)}</p>
         </div>
@@ -40,12 +34,6 @@ function UsersFilter(props) {
                 return (
                     <UserIcon
                         key={user.name}
-                        cards={props.cards}
-                        setCards={props.setCards}
-                        allCards={props.allCards}
-                        setAllCards={props.setAllCards}
-                        isFiltered={props.isFiltered}
-                        setIsFiltered={props.setIsFiltered}
                         filteredUser={props.filteredUser}
                         setFilteredUser={props.setFilteredUser}
                         user={user}></UserIcon>
@@ -56,12 +44,11 @@ function UsersFilter(props) {
 }
 
 export const MyApp = () => {
-    const [cards, setCards] = useState(DEFAULT_CARDS);
-    const [allCards, setAllCards] = useState(cards);
-    const [isFiltered, setIsFiltered] = useState(false);
+    const [cards, setCards] = useState<Card[]>([]);
     const [users, setUsers] = useState<{ name: string; color: string }[]>([]);
-    const [user, setUser] = useState<{ name: string; color: string } | null>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [userColor, setUserColor] = useState<string>('');
+    const [socket, setSocket] = useState<SocketService | null>(null);
 
     const [error, setError] = useState<string>('');
 
@@ -81,59 +68,131 @@ export const MyApp = () => {
     ];
 
     const [username, setUsername] = useState<string>(``);
+    const [room, setRoom] = useState<string>(``);
     const [filteredUser, setFilteredUser] = useState<{
         name: string;
         color: string;
     } | null>(null);
 
     useEffect(() => {
-        let _users: { name: string; color: string }[] = [];
+        const users: { name: string; color: string }[] = [];
 
         cards.map((card) => {
             if (
-                _users.find((user) => {
+                users.find((user) => {
                     return user.name === card.user.name;
                 })
             )
                 return;
-            _users.push(card.user);
+            users.push(card.user);
         });
-        setUsers(_users);
-    }, []);
+        setUsers(users);
+    }, [cards]);
 
-    useEffect(() => {}, [user]);
+    useEffect(() => {
+        if (room === '') return;
+
+        const socket = new SocketService('http://localhost:3000', room);
+
+        setSocket(socket);
+
+        socket.onRoomJoin((message: string) => {
+            console.log(message);
+        });
+
+        socket.onRoomLeave((message: string) => {
+            console.log(message);
+        });
+
+        socket.onCardAdd((newCard: Card) => {
+            console.log(` - New card added in room:`, newCard);
+            setCards((prevCards) => [...prevCards, newCard]);
+        });
+
+        socket.onCardUpdate((cardId, updatedCard: Card) => {
+            console.log(` - Card updated in room:`, cardId, updatedCard);
+            setCards((prevCards) =>
+                prevCards.map((card) => {
+                    if (card.id === cardId) {
+                        return { ...card, ...updatedCard };
+                    }
+                    return card;
+                })
+            );
+        });
+
+        socket.onCardRemove((cardId: string) => {
+            console.log(` - Card removed from room:`, cardId);
+            setCards((prevCards) => prevCards.filter((card) => card.id !== cardId));
+        });
+
+        socket.onUserUpdate((updatedUser: User) => {
+            console.log(` - User updated:`, updatedUser);
+            setCards((prevCards) =>
+                prevCards.map((card) => {
+                    if (card.user.name === updatedUser.name) {
+                        return { ...card, user: updatedUser };
+                    }
+                    return card;
+                })
+            );
+        });
+
+        return () => {
+            socket.disconnect();
+        };
+    }, [user && room]);
 
     const userScreen = (
         <form
             className="grid place-content-center h-screen"
             onSubmit={(e) => {
                 e.preventDefault();
-                if (!userColor || !username)
+                if (!userColor || !username || !room)
                     return setError(
                         `${
-                            !userColor && !username
+                            !userColor && !username && !room
+                                ? 'Username, cor e nome da sala'
+                                : !room && !username
+                                ? 'Nome da sala e Username'
+                                : !room && !userColor
+                                ? 'Nome da sala e cor'
+                                : !userColor && !username
                                 ? 'Username e cor'
+                                : !userColor
+                                ? 'Cor'
                                 : !username
                                 ? 'Username'
+                                : !room
+                                ? 'Nome da sala'
                                 : 'Cor'
                         } faltando!`
                     );
-                setUser({ name: username, color: userColor });
+                setUser({ name: username, color: userColor, hidden: false });
             }}>
-            <h2>Qual é seu nome?</h2>
+            <h2 className="mt-20">Sala</h2>
+            <input
+                onChange={(e) => {
+                    setRoom(e.target.value);
+                }}
+                className={`h-10 border-neutral-700 border-b p-2 focus-visible:outline-0 focus-visible:border-white transition-all focus-visible:border-b-2`}
+                type="text"
+            />
+            <h2 className="mt-20">Qual é seu nome?</h2>
             <input
                 onChange={(e) => {
                     setUsername(e.target.value);
                 }}
-                className="border-neutral-700 border rounded bg-neutral-900 p-2"
+                className={`h-10 border-neutral-700 border-b p-2 focus-visible:outline-0 focus-visible:border-white transition-all focus-visible:border-b-2`}
                 type="text"
             />
-            <div className="space-y-4 mt-6">
+            <div className="space-y-4 mt-10">
                 <h2>Qual cor?</h2>
                 <div className="grid grid-cols-5 justify-around gap-5">
                     {COLORS.map((color) => (
                         <div
                             onClick={() => setUserColor(color)}
+                            key={color}
                             className={
                                 userColor === color
                                     ? `size-12 rounded-full cursor-pointer hover:brightness-50 bg-${color}-500 border-2`
@@ -149,25 +208,49 @@ export const MyApp = () => {
         </form>
     );
 
+    function handleHide(): void {
+        if (socket && user) {
+            setUser({ ...user, hidden: !user.hidden });
+            socket.updateUser({ ...user, hidden: !user.hidden });
+        }
+    }
+
     return (
         <>
             <span className="bg-red-500 bg-orange-500 bg-amber-500 bg-yellow-500 bg-lime-500 bg-green-500 bg-emerald-500 bg-teal-500 bg-cyan-500 bg-sky-500 bg-blue-500 bg-indigo-500 bg-violet-500 bg-purple-500 bg-fuchsia-500 bg-pink-500 bg-rose-500"></span>
+            <span className="text-red-400 text-orange-400 text-amber-400 text-yellow-400 text-lime-400 text-green-400 text-emerald-400 text-teal-400 text-cyan-400 text-sky-400 text-blue-400 text-indigo-400 text-violet-400 text-purple-400 text-fuchsia-400 text-pink-400 text-rose-400"></span>
             {user ? (
                 <div className="h-screen w-full bg-neutral-900 text-neutral-50">
-                    <div className='h-20 flex items-center justify-between px-10'>
+                    <div className="px-12 flex justify-between py-1.5 bg-gray-800">
+                        <h2>
+                            <span className="text-slate-300 font-semibold">{room}</span>
+                        </h2>
+                        <h2>
+                            <span className={`text-${user.color}-400 font-semibold`}>
+                                {user.name}
+                            </span>
+                        </h2>
+                        <button
+                            onClick={handleHide}
+                            className="bg-slate-700 px-2 py-0.5 w-32 rounded cursor-pointer">
+                            {!user.hidden ? 'Esconder' : 'Mostrar'}
+                        </button>
+                    </div>
+                    <div className="h-20 flex items-center justify-between px-10">
                         <UsersFilter
                             cards={cards}
                             setCards={setCards}
-                            allCards={allCards}
-                            setAllCards={setAllCards}
-                            isFiltered={isFiltered}
-                            setIsFiltered={setIsFiltered}
                             users={users}
                             filteredUser={filteredUser}
                             setFilteredUser={setFilteredUser}></UsersFilter>
-                            <button>Exportar para excel</button>
                     </div>
-                    <Board cards={cards} setCards={setCards} user={user} />
+                    <Board
+                        cards={cards}
+                        setCards={setCards}
+                        user={user}
+                        socket={socket}
+                        filteredUser={filteredUser}
+                    />
                 </div>
             ) : (
                 userScreen
@@ -176,7 +259,7 @@ export const MyApp = () => {
     );
 };
 
-const Board = ({ cards, setCards, user }: any) => {
+const Board = ({ cards, setCards, user, socket, filteredUser }: any) => {
     return (
         <div className="grid grid-cols-4 w-full gap-3 px-12 overflow-hidden">
             <Column
@@ -186,6 +269,8 @@ const Board = ({ cards, setCards, user }: any) => {
                 cards={cards}
                 setCards={setCards}
                 user={user}
+                socket={socket}
+                filteredUser={filteredUser}
             />
             <Column
                 title="Podemos melhorar"
@@ -194,6 +279,8 @@ const Board = ({ cards, setCards, user }: any) => {
                 cards={cards}
                 setCards={setCards}
                 user={user}
+                socket={socket}
+                filteredUser={filteredUser}
             />
             <Column
                 title="Devemos parar"
@@ -202,6 +289,8 @@ const Board = ({ cards, setCards, user }: any) => {
                 cards={cards}
                 setCards={setCards}
                 user={user}
+                socket={socket}
+                filteredUser={filteredUser}
             />
             <Column
                 title="Devemos iniciar"
@@ -210,28 +299,43 @@ const Board = ({ cards, setCards, user }: any) => {
                 cards={cards}
                 setCards={setCards}
                 user={user}
+                socket={socket}
+                filteredUser={filteredUser}
             />
-            <BurnBarrel setCards={setCards} user={user} />
+            <BurnBarrel user={user} socket={socket} />
         </div>
     );
 };
 
-const Column = ({ title, headingColor, cards, column, setCards, user }) => {
+const Column = ({
+    title,
+    headingColor,
+    cards,
+    column,
+    setCards,
+    user,
+    socket,
+    filteredUser,
+}) => {
     const [active, setActive] = useState(false);
 
     const handleDragStart = (e, card) => {
+        console.log(`Dragging card:`, card);
         e.dataTransfer.setData('cardId', card.id);
-        e.dataTransfer.setData('cardOwner', card.username);
+        e.dataTransfer.setData('cardOwner', card.user.name);
     };
 
     const handleDragEnd = (e) => {
         const cardId = e.dataTransfer.getData('cardId');
+        const cardOwner = e.dataTransfer.getData('cardOwner');
 
         setActive(false);
         clearHighlights();
 
         const indicators = getIndicators();
         const { element } = getNearestIndicator(e, indicators);
+
+        if (cardOwner !== user.name) return;
 
         const before = element.dataset.before || '-1';
 
@@ -254,6 +358,8 @@ const Column = ({ title, headingColor, cards, column, setCards, user }) => {
 
                 copy.splice(insertAtIndex, 0, cardToTransfer);
             }
+
+            if (socket) socket.updateCard(cardId, cardToTransfer);
 
             setCards(copy);
         }
@@ -319,6 +425,11 @@ const Column = ({ title, headingColor, cards, column, setCards, user }) => {
 
     const filteredCards = cards.filter((c) => c.column === column);
 
+    const finalCards = filteredCards.filter((c) => {
+        if (!filteredUser) return true;
+        return c.user.name === filteredUser.name;
+    });
+
     return (
         <div className="w-full shrink-0 h-full">
             <div className="mb-3 flex items-center justify-between">
@@ -327,7 +438,7 @@ const Column = ({ title, headingColor, cards, column, setCards, user }) => {
                     {filteredCards.length}
                 </span>
             </div>
-            <AddCard column={column} setCards={setCards} user={user} />
+            <AddCard column={column} user={user} socket={socket} />
             <div
                 onDrop={handleDragEnd}
                 onDragOver={handleDragOver}
@@ -335,7 +446,7 @@ const Column = ({ title, headingColor, cards, column, setCards, user }) => {
                 className={`h-full max-h-[80vh] w-full overflow-y-auto overflow-x-hidden transition-colors ${
                     active ? 'bg-neutral-800/50' : 'bg-neutral-800/0'
                 }`}>
-                {filteredCards.map((c) => {
+                {finalCards.map((c) => {
                     return <Card key={c.id} {...c} handleDragStart={handleDragStart} />;
                 })}
                 <DropIndicator beforeId={null} column={column} />
@@ -352,9 +463,16 @@ const Card = ({ title, id, column, handleDragStart, user }) => {
                 layout
                 layoutId={id}
                 draggable="true"
-                onDragStart={(e) => handleDragStart(e, { title, id, column })}
+                onDragStart={(e) => handleDragStart(e, { title, id, column, user })}
                 className="cursor-grab rounded border border-neutral-700 bg-neutral-800 p-3 active:cursor-grabbing space-y-2">
-                <p className={!user.hidden ? "text-neutral-100" : 'bg-neutral-100 brightness-50 rounded-sm w-auto text-transparent'}>{title}</p>
+                <p
+                    className={
+                        !user.hidden
+                            ? 'text-neutral-100'
+                            : 'bg-neutral-100 brightness-50 rounded-sm w-auto text-transparent'
+                    }>
+                    {title}
+                </p>
                 <div className="flex items-center space-x-1.5 text-neutral-400">
                     <span className={`h-2 w-2 rounded-full bg-${user.color}-500`}></span>
                     <small>{user.name}</small>
@@ -374,7 +492,7 @@ const DropIndicator = ({ beforeId, column }) => {
     );
 };
 
-const BurnBarrel = ({ setCards, user }) => {
+const BurnBarrel = ({ user, socket }) => {
     const [active, setActive] = useState(false);
 
     const handleDragOver = (e) => {
@@ -393,7 +511,10 @@ const BurnBarrel = ({ setCards, user }) => {
 
         if (cardOwner !== user.name) return;
 
-        setCards((pv) => pv.filter((c) => c.id !== cardId));
+        if (socket) {
+            console.log(`Removing card with ID: ${cardId}`);
+            socket.removeCard(cardId);
+        }
 
         setActive(false);
     };
@@ -413,7 +534,7 @@ const BurnBarrel = ({ setCards, user }) => {
     );
 };
 
-const AddCard = ({ column, setCards, user }) => {
+const AddCard = ({ column, user, socket }) => {
     const [text, setText] = useState('');
     const [adding, setAdding] = useState(false);
 
@@ -422,14 +543,16 @@ const AddCard = ({ column, setCards, user }) => {
 
         if (!text.trim().length) return;
 
-        const newCard = {
+        const newCard: Card = {
             column,
             title: text.trim(),
             id: Math.random().toString(),
             user,
         };
 
-        setCards((pv) => [...pv, newCard]);
+        console.log(user, newCard, `user aqui`);
+
+        if (socket) socket.addCard(newCard);
 
         setAdding(false);
     };
