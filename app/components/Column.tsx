@@ -74,7 +74,7 @@ export const Column: React.FC<ColumnProps> = ({
         (el.element as HTMLElement).style.opacity = '1';
     };
 
-    const getNearestIndicator = (e, indicators: Element[]) => {
+    const getNearestIndicator = (e, indicators) => {
         const DISTANCE_OFFSET = 50;
 
         const el = indicators.reduce(

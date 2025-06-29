@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import type { Card, User } from "types";
+import { updateColumn, type Column } from "~/columns/columns";
 
 class SocketClient {
     private socket: Socket;
@@ -61,6 +62,10 @@ class SocketClient {
         this.socket.emit("user.update", this.room, user);
     }
 
+    updatecolumn(columnToUpdate: string, newColumn: Column): void {
+        this.socket.emit("column.update", this.room, columnToUpdate, newColumn);
+    }
+
     onRoomJoin(callback: (message: string) => void): void {
         this.socket.on("room.join", callback);
     }
@@ -87,6 +92,10 @@ class SocketClient {
 
     onUserUpdate(callback: (user: any) => void): void {
         this.socket.on("user.updated", callback);
+    }
+
+    onColumnUpdate(callback: (columnName: string, newColumn: Column) => void): void {
+        this.socket.on("column.updated", callback);
     }
 
     disconnect(): void {

@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { getInitials } from '../utils/getInitials';
 import SocketService from '../utils/Socket';
-import type { Card, User } from 'types';
+import type { Card, CardUser, User } from 'types';
 import { IoExitOutline } from 'react-icons/io5';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { PiExport } from 'react-icons/pi';
 import { FaGear } from 'react-icons/fa6';
 import { Board } from './components/Board';
+import { exportCardsToCSV } from 'utils/export';
+import { renderUserForm } from './screens/UserScreen';
+import { updateColumn, type Column } from './columns/columns';
+import SettingsModal from './components/settingsModal';
 
 function UserIcon(props: {
-    filteredUser: { name: string; color: string };
+    filteredUser: CardUser | null;
     setFilteredUser: React.Dispatch<
         React.SetStateAction<{
             name: string;
@@ -36,10 +40,14 @@ function UserIcon(props: {
     );
 }
 
-function UsersFilter(props) {
+function UsersFilter(props: {
+    users: CardUser[];
+    filteredUser: CardUser | null;
+    setFilteredUser: React.Dispatch<React.SetStateAction<CardUser | null>>;
+}) {
     return (
         <div className="flex space-x-3">
-            {props.users.map((user: any) => {
+            {props.users.map((user: CardUser) => {
                 return (
                     <UserIcon
                         key={user.name}
@@ -54,36 +62,20 @@ function UsersFilter(props) {
 
 export const App = () => {
     const [cards, setCards] = useState<Card[]>([]);
-    const [users, setUsers] = useState<{ name: string; color: string }[]>([]);
+    const [users, setUsers] = useState<CardUser[]>([]);
     const [user, setUser] = useState<User | null>(null);
     const [userColor, setUserColor] = useState<string>('');
     const [socket, setSocket] = useState<SocketService | null>(null);
 
     const [error, setError] = useState<string>('');
 
-    const COLORS = [
-        'red',
-        'amber',
-        'emerald',
-        'teal',
-        'cyan',
-        'sky',
-        'blue',
-        'violet',
-        'purple',
-        'fuchsia',
-        'pink',
-        'rose',
-    ];
-
     const [loading, setLoading] = useState<boolean>(true);
 
     const [username, setUsername] = useState<string>(``);
     const [room, setRoom] = useState<string>(``);
-    const [filteredUser, setFilteredUser] = useState<{
-        name: string;
-        color: string;
-    } | null>(null);
+    const [filteredUser, setFilteredUser] = useState<CardUser | null>(null);
+
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
 
     useEffect(() => {
         const storedUser = sessionStorage.getItem('user');
@@ -119,7 +111,13 @@ export const App = () => {
     }, [cards]);
 
     useEffect(() => {
-        if (room === '') return;
+        if (!room) return;
+        console.log('trying to connect to room:', room);
+        console.log('User:', user);
+        if (!user) {
+            console.error('User is not defined. Cannot connect to room.');
+            return;
+        }
 
         const socket = new SocketService('http://localhost:3000', room);
 
@@ -185,80 +183,15 @@ export const App = () => {
             );
         });
 
+        socket.onColumnUpdate((columnName: string, newColumn: Column) => {
+            console.log(` - Column updated:`, columnName);
+            updateColumn(columnName, newColumn);
+        });
+
         return () => {
             socket.disconnect();
         };
     }, [user && room]);
-
-    const userScreen = (
-        <form
-            className="grid place-content-center h-screen"
-            onSubmit={(e) => {
-                e.preventDefault();
-                if (!userColor || !username || !room)
-                    return setError(
-                        `${
-                            !userColor && !username && !room
-                                ? 'Username, cor e nome da sala'
-                                : !room && !username
-                                ? 'Nome da sala e Username'
-                                : !room && !userColor
-                                ? 'Nome da sala e cor'
-                                : !userColor && !username
-                                ? 'Username e cor'
-                                : !userColor
-                                ? 'Cor'
-                                : !username
-                                ? 'Username'
-                                : !room
-                                ? 'Nome da sala'
-                                : 'Cor'
-                        } faltando!`
-                    );
-                setUser({ name: username, color: userColor, hidden: false });
-                sessionStorage.setItem(
-                    'user',
-                    JSON.stringify({ name: username, color: userColor, hidden: false })
-                );
-                sessionStorage.setItem('room', room);
-            }}>
-            <h2 className="mt-20">Sala</h2>
-            <input
-                onChange={(e) => {
-                    setRoom(e.target.value);
-                }}
-                className={`h-10 border-neutral-700 border-b p-2 focus-visible:outline-0 focus-visible:border-white transition-all focus-visible:border-b-2`}
-                type="text"
-            />
-            <h2 className="mt-20">Qual é seu nome?</h2>
-            <input
-                onChange={(e) => {
-                    setUsername(e.target.value);
-                }}
-                className={`h-10 border-neutral-700 border-b p-2 focus-visible:outline-0 focus-visible:border-white transition-all focus-visible:border-b-2`}
-                type="text"
-            />
-            <div className="space-y-4 mt-10">
-                <h2>Qual cor?</h2>
-                <div className="grid grid-cols-5 justify-around gap-5">
-                    {COLORS.map((color) => (
-                        <div
-                            onClick={() => setUserColor(color)}
-                            key={color}
-                            className={
-                                userColor === color
-                                    ? `size-12 rounded-full cursor-pointer hover:brightness-50 bg-${color}-500 border-2`
-                                    : `size-12 rounded-full cursor-pointer hover:brightness-50 bg-${color}-500`
-                            }></div>
-                    ))}
-                </div>
-                <button className="bg-white font-semibold hover:brightness-75 cursor-pointer mt-3 text-black p-2 rounded-xl px-4">
-                    Prosseguir
-                </button>
-                {<span className="text-red-500 ml-4">{error}</span>}
-            </div>
-        </form>
-    );
 
     function handleHide(): void {
         if (socket && user) {
@@ -269,29 +202,17 @@ export const App = () => {
 
     function handleExport(event): void {
         event.preventDefault();
-        if (!socket) return;
 
-        const content = `Column\tTitle\tUser\n` +
-            cards.map((card) => `${card.column}\t${card.title}\t${card.user.name}`).join('\n');
-
-        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `${room}_export.txt`);
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        exportCardsToCSV(cards, room);
     }
 
     function handleSettings(event): void {
-        throw new Error('Function not implemented.');
-        // to do : modal to allow to change column title and colors
+        setIsSettingsModalOpen(!isSettingsModalOpen);
     }
 
     return (
         <>
+        { isSettingsModalOpen && <SettingsModal handleSettings={handleSettings} /> }
             <span className="bg-red-500 bg-orange-500 bg-amber-500 bg-yellow-500 bg-lime-500 bg-green-500 bg-emerald-500 bg-teal-500 bg-cyan-500 bg-sky-500 bg-blue-500 bg-indigo-500 bg-violet-500 bg-purple-500 bg-fuchsia-500 bg-pink-500 bg-rose-500"></span>
             <span className="text-red-400 text-orange-400 text-amber-400 text-yellow-400 text-lime-400 text-green-400 text-emerald-400 text-teal-400 text-cyan-400 text-sky-400 text-blue-400 text-indigo-400 text-violet-400 text-purple-400 text-fuchsia-400 text-pink-400 text-rose-400"></span>
             {loading ? (
@@ -306,12 +227,13 @@ export const App = () => {
                             <button
                                 onClick={() => {
                                     if (socket) {
-                                        socket.leaveRoom();
                                         sessionStorage.removeItem('user');
                                         sessionStorage.removeItem('room');
                                         setUser(null);
+                                        setRoom('');
                                         setCards([]);
                                         setUsers([]);
+                                        socket.leaveRoom();
                                     }
                                 }}
                                 className={`px-2 h-10 w-10 hover:w-22 grid grid-cols-2 group items-center transition-all bg-slate-700/25 cursor-pointer rounded-full hover:bg-red-500/25`}>
@@ -371,22 +293,29 @@ export const App = () => {
                     </div>
                     <div className="h-20 flex items-center justify-between px-10">
                         <UsersFilter
-                            cards={cards}
-                            setCards={setCards}
                             users={users}
                             filteredUser={filteredUser}
                             setFilteredUser={setFilteredUser}></UsersFilter>
                     </div>
                     <Board
                         cards={cards}
-                        setCards={setCards}
                         user={user}
                         socket={socket}
                         filteredUser={filteredUser}
                     />
                 </div>
             ) : (
-                userScreen
+                renderUserForm(
+                    userColor,
+                    username,
+                    room,
+                    setError,
+                    setUser,
+                    setRoom,
+                    setUsername,
+                    setUserColor,
+                    error
+                )
             )}
         </>
     );
