@@ -81,6 +81,10 @@ class SocketClient {
         this.socket.on("card.removed", callback);
     }
 
+    onCardInitialized(callback: (cards: Card[]) => void): void {
+        this.socket.on("cards.initial", callback);
+    }
+
     onUserUpdate(callback: (user: any) => void): void {
         this.socket.on("user.updated", callback);
     }

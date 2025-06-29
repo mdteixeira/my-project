@@ -2,7 +2,9 @@ export interface Card {
     column: string;
     title: string;
     id: string;
-    user: { name: string; color: string };
+    user: {
+        hidden: boolean; name: string; color: string 
+};
 }
 
 export interface CardUser { name: string, color: string }
