@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { FiPlus, FiTrash } from 'react-icons/fi';
-import { motion } from 'framer-motion';
-import { getInitials } from './getInitials';
-import SocketService from './Socket';
+import { getInitials } from '../utils/getInitials';
+import SocketService from '../utils/Socket';
 import type { Card, User } from 'types';
 import { IoExitOutline } from 'react-icons/io5';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { PiExport } from 'react-icons/pi';
 import { FaGear } from 'react-icons/fa6';
+import { Board } from './components/Board';
 
 function UserIcon(props: {
     filteredUser: { name: string; color: string };
@@ -53,7 +52,7 @@ function UsersFilter(props) {
     );
 }
 
-export const MyApp = () => {
+export const App = () => {
     const [cards, setCards] = useState<Card[]>([]);
     const [users, setUsers] = useState<{ name: string; color: string }[]>([]);
     const [user, setUser] = useState<User | null>(null);
@@ -268,12 +267,25 @@ export const MyApp = () => {
         }
     }
 
-    function handleExport(event: MouseEvent<HTMLButtonElement, MouseEvent>): void {
-        throw new Error('Function not implemented.');
-        // to do : export cards to a csv file or directly to a google sheet
+    function handleExport(event): void {
+        event.preventDefault();
+        if (!socket) return;
+
+        const content = `Column\tTitle\tUser\n` +
+            cards.map((card) => `${card.column}\t${card.title}\t${card.user.name}`).join('\n');
+
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${room}_export.txt`);
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
-    function handleSettings(event: MouseEvent<HTMLButtonElement, MouseEvent>): void {
+    function handleSettings(event): void {
         throw new Error('Function not implemented.');
         // to do : modal to allow to change column title and colors
     }
@@ -380,332 +392,12 @@ export const MyApp = () => {
     );
 };
 
-const Board = ({ cards, setCards, user, socket, filteredUser }: any) => {
-    return (
-        <div className="grid grid-cols-4 w-full gap-3 px-12 overflow-hidden">
-            <Column
-                title="Bom e devemos Continuar"
-                column="good"
-                headingColor="text-emerald-300"
-                cards={cards}
-                setCards={setCards}
-                user={user}
-                socket={socket}
-                filteredUser={filteredUser}
-            />
-            <Column
-                title="Podemos melhorar"
-                column="improve"
-                headingColor="text-yellow-200"
-                cards={cards}
-                setCards={setCards}
-                user={user}
-                socket={socket}
-                filteredUser={filteredUser}
-            />
-            <Column
-                title="Devemos parar"
-                column="stop"
-                headingColor="text-red-300"
-                cards={cards}
-                setCards={setCards}
-                user={user}
-                socket={socket}
-                filteredUser={filteredUser}
-            />
-            <Column
-                title="Devemos iniciar"
-                column="start"
-                headingColor="text-teal-200"
-                cards={cards}
-                setCards={setCards}
-                user={user}
-                socket={socket}
-                filteredUser={filteredUser}
-            />
-            <BurnBarrel user={user} socket={socket} />
-        </div>
-    );
-};
-
-const Column = ({
-    title,
-    headingColor,
-    cards,
-    column,
-    setCards,
-    user,
-    socket,
-    filteredUser,
-}) => {
-    const [active, setActive] = useState(false);
-
-    const handleDragStart = (e, card) => {
-        console.log(`Dragging card:`, card);
-        e.dataTransfer.setData('cardId', card.id);
-        e.dataTransfer.setData('cardOwner', card.user.name);
-    };
-
-    const handleDragEnd = (e) => {
-        const cardId = e.dataTransfer.getData('cardId');
-        const cardOwner = e.dataTransfer.getData('cardOwner');
-
-        setActive(false);
-        clearHighlights();
-
-        const indicators = getIndicators();
-        const { element } = getNearestIndicator(e, indicators);
-
-        if (cardOwner !== user.name) return;
-
-        const before = element.dataset.before || '-1';
-
-        if (before !== cardId) {
-            let cardToUpdate = cards.find((c) => c.id === cardId);
-            if (!cardToUpdate) return;
-            cardToUpdate = { ...cardToUpdate, column };
-
-            if (socket) socket.updateCard(cardId, cardToUpdate);
-        }
-    };
-
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        highlightIndicator(e);
-
-        setActive(true);
-    };
-
-    const clearHighlights = (els) => {
-        const indicators = els || getIndicators();
-
-        indicators.forEach((i) => {
-            i.style.opacity = '0';
-        });
-    };
-
-    const highlightIndicator = (e) => {
-        const indicators = getIndicators();
-
-        clearHighlights(indicators);
-
-        const el = getNearestIndicator(e, indicators);
-
-        el.element.style.opacity = '1';
-    };
-
-    const getNearestIndicator = (e, indicators) => {
-        const DISTANCE_OFFSET = 50;
-
-        const el = indicators.reduce(
-            (closest, child) => {
-                const box = child.getBoundingClientRect();
-
-                const offset = e.clientY - (box.top + DISTANCE_OFFSET);
-
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
-                }
-            },
-            {
-                offset: Number.NEGATIVE_INFINITY,
-                element: indicators[indicators.length - 1],
-            }
-        );
-
-        return el;
-    };
-
-    const getIndicators = () => {
-        return Array.from(document.querySelectorAll(`[data-column="${column}"]`));
-    };
-
-    const handleDragLeave = () => {
-        clearHighlights();
-        setActive(false);
-    };
-
-    const filteredCards = cards.filter((c) => c.column === column);
-
-    const finalCards = filteredCards.filter((c) => {
-        if (!filteredUser) return true;
-        return c.user.name === filteredUser.name;
-    });
-
-    return (
-        <div className="w-full shrink-0 h-full">
-            <div className="mb-3 flex items-center justify-between">
-                <h3 className={`font-medium ${headingColor}`}>{title}</h3>
-                <span className="rounded text-sm text-neutral-400">
-                    {filteredCards.length}
-                </span>
-            </div>
-            <AddCard column={column} user={user} socket={socket} />
-            <div
-                onDrop={handleDragEnd}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                className={`h-full max-h-[80vh] w-full overflow-y-auto overflow-x-hidden transition-colors ${
-                    active ? 'bg-neutral-800/50' : 'bg-neutral-800/0'
-                }`}>
-                {finalCards.map((c) => {
-                    return (
-                        <Card
-                            key={c.id}
-                            {...c}
-                            socket={socket}
-                            handleDragStart={handleDragStart}
-                        />
-                    );
-                })}
-                <DropIndicator beforeId={null} column={column} />
-            </div>
-        </div>
-    );
-};
-
-const Card = ({ title, id, column, handleDragStart, user, socket }) => {
-    return (
-        <>
-            <DropIndicator beforeId={id} column={column} />
-            <motion.div
-                layout
-                layoutId={id}
-                draggable="true"
-                onDragStart={(e) => handleDragStart(e, { title, id, column, user })}
-                className="cursor-grab rounded-xl border border-neutral-700 bg-neutral-800 p-3 active:cursor-grabbing space-y-2">
-                <p
-                    className={
-                        !user.hidden
-                            ? 'text-neutral-100'
-                            : 'bg-neutral-100 brightness-50 rounded-sm w-auto text-transparent'
-                    }>
-                    {title}
-                </p>
-                <div className="flex items-center justify-between space-x-1.5 text-neutral-400">
-                    <div className="flex gap-1 items-center">
-                        <span
-                            className={`h-2 w-2 rounded-full bg-${user.color}-500`}></span>
-                        <small>{user.name}</small>
-                    </div>
-                </div>
-            </motion.div>
-        </>
-    );
-};
-
-const DropIndicator = ({ beforeId, column }) => {
+export const DropIndicator = ({ beforeId, column }) => {
     return (
         <div
             data-before={beforeId || '-1'}
             data-column={column}
             className="my-0.5 h-0.5 w-full bg-violet-400 opacity-0"
         />
-    );
-};
-
-const BurnBarrel = ({ user, socket }) => {
-    const [active, setActive] = useState(false);
-
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        if (e.dataTransfer.getData('cardOwner') !== user.name) return;
-        setActive(true);
-    };
-
-    const handleDragLeave = () => {
-        setActive(false);
-    };
-
-    const handleDragEnd = (e) => {
-        const cardId = e.dataTransfer.getData('cardId');
-        const cardOwner = e.dataTransfer.getData('cardOwner');
-
-        if (cardOwner !== user.name) return;
-
-        if (socket) {
-            console.log(`Removing card with ID: ${cardId}`);
-            socket.removeCard(cardId);
-        }
-
-        setActive(false);
-    };
-
-    return (
-        <div
-            onDrop={handleDragEnd}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            className={`mt-10 grid h-24 w-24 absolute bottom-12 right-12 shrink-0 place-content-center rounded border text-3xl ${
-                active
-                    ? 'border-red-800 bg-red-800/20 text-red-500'
-                    : 'border-neutral-500 bg-neutral-500/20 text-neutral-500'
-            }`}>
-            {active ? <FiTrash className="animate-pulse" /> : <FiTrash />}
-        </div>
-    );
-};
-
-const AddCard = ({ column, user, socket }) => {
-    const [text, setText] = useState('');
-    const [adding, setAdding] = useState(false);
-
-    const handleSubmit = (e) => {
-        console.log('Submitting new card:', text, column, user);
-        e.preventDefault();
-
-        if (!text.trim().length) return;
-
-        const newCard: Card = {
-            column,
-            title: text.trim(),
-            id: Math.random().toString(),
-            user,
-        };
-
-        console.log(user, newCard, `user aqui`);
-
-        if (socket) socket.addCard(newCard);
-
-        setAdding(false);
-    };
-
-    return (
-        <>
-            {adding ? (
-                <motion.form layout onSubmit={handleSubmit}>
-                    <input
-                        onChange={(e) => setText(e.target.value)}
-                        autoFocus
-                        placeholder="Adicionar Card..."
-                        className="w-full rounded border border-violet-400 bg-violet-400/20 p-3 text-sm text-neutral-50 placeholder-violet-300 focus:outline-0"
-                    />
-                    <div className="my-1.5 flex items-center justify-end gap-1.5">
-                        <button
-                            type="button"
-                            onClick={() => setAdding(false)}
-                            className="px-3 py-1.5 text-xs text-neutral-400 transition-colors hover:text-neutral-50">
-                            Fechar
-                        </button>
-                        <button
-                            type="submit"
-                            className="flex items-center gap-1.5 rounded bg-neutral-50 px-3 py-1.5 text-xs text-neutral-950 transition-colors hover:bg-neutral-300">
-                            <span>Adicionar</span>
-                            <FiPlus />
-                        </button>
-                    </div>
-                </motion.form>
-            ) : (
-                <motion.button
-                    layout
-                    onClick={() => setAdding(true)}
-                    className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 transition-colors hover:text-neutral-50">
-                    <span>Adicionar</span>
-                    <FiPlus />
-                </motion.button>
-            )}
-        </>
     );
 };
