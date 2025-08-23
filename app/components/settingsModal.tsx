@@ -22,6 +22,7 @@ const SettingsModal = (props) => {
             setSuperUserState(!superUser);
             loggedUser.superUser = !loggedUser.superUser;
             sessionStorage.setItem('user', JSON.stringify(loggedUser));
+            localStorage.setItem('user', JSON.stringify(loggedUser));
         }
     };
 
@@ -110,7 +111,9 @@ const SettingsModal = (props) => {
                                 />
                             </div>
                             <div className="flex flex-col gap-1">
-                                <small className="text-xs mb-2 font-semibold">Cor - {newColumnColor}</small>
+                                <small className="text-xs mb-2 font-semibold">
+                                    Cor - {newColumnColor}
+                                </small>
                                 {renderColorPicker(setNewColumnColor, newColumnColor)}
                                 <button
                                     type="submit"
@@ -121,59 +124,51 @@ const SettingsModal = (props) => {
                         </form>
                     </>
                 ) : (
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2 *:cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={superUser}
-                                onChange={setSuperUser}
-                                className="cursor-pointer"
-                                id="superUserToggle"
-                                name="superUserToggle"
-                                hidden
-                            />
-                            <label
-                                htmlFor="superUserToggle"
-                                className="dark:text-white w-full">
-                                <div className="flex items-center ps-4 justify-between dark:bg-neutral-800/50 p-1 rounded-3xl">
-                                    <span className="dark:text-white">Super usuário</span>
-                                    <div className="flex itens-center">
-                                        <button
-                                            className={`cursor-pointer transition-all rounded-full
+                    <div className="space-y-4 w-96">
+                        <input
+                            type="checkbox"
+                            checked={superUser}
+                            onChange={setSuperUser}
+                            className="cursor-pointer"
+                            id="superUserToggle"
+                            name="superUserToggle"
+                            hidden
+                        />
+                        <label
+                            htmlFor="superUserToggle"
+                            className="dark:text-white w-full flex items-center ps-4 justify-between dark:bg-neutral-800/50 p-1 rounded-3xl cursor-pointer">
+                            <span className="dark:text-white">Super usuário</span>
+                            <span
+                                className={`transition-all rounded-full
                                         ${
                                             superUser
                                                 ? `text-amber-500 dark:bg-amber-600/20 dark:hover:bg-amber-600/30 p-1 hover:text-amber-400`
                                                 : `text-neutral-500 dark:bg-neutral-600/20 dark:hover:bg-neutral-600/30 p-1 hover:text-neutral-400`
                                         }
                                     `}>
-                                            <BsStarFill className="m-2" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
+                                <BsStarFill className="m-2" />
+                            </span>
+                        </label>
                         <h3 className="text-lg">Colunas</h3>
-                        <div className="grid gap-2 w-96">
-                            {columns.map((col) => (
-                                <div
-                                    key={col.column}
-                                    className="flex items-center ps-4 justify-between dark:bg-neutral-800/50 p-1 rounded-3xl">
-                                    <span className="dark:text-white">{col.name}</span>
-                                    <div className="flex itens-center">
-                                        <button
-                                            onClick={() => editColumn(col)}
-                                            className="text-neutral-500 cursor-pointer transition-all rounded-s-full dark:bg-neutral-600/20 dark:hover:bg-neutral-600/30 p-1 px-2 hover:text-neutral-200">
-                                            <FaPencil className="m-2" />
-                                        </button>
-                                        <button
-                                            onClick={() => deleteColumn(col.column)}
-                                            className="text-red-500 cursor-pointer transition-all rounded-e-full dark:bg-red-600/20 dark:hover:bg-red-600/30 p-1 px-2 hover:text-red-400">
-                                            <FaTrash className="m-2" />
-                                        </button>
-                                    </div>
+                        {columns.map((col) => (
+                            <div
+                                key={col.column}
+                                className="flex items-center ps-4 justify-between dark:bg-neutral-800/50 p-1 rounded-3xl">
+                                <span className="dark:text-white">{col.name}</span>
+                                <div className="flex itens-center">
+                                    <button
+                                        onClick={() => editColumn(col)}
+                                        className="text-neutral-500 cursor-pointer transition-all rounded-s-full dark:bg-neutral-600/20 dark:hover:bg-neutral-600/30 p-1 px-2 hover:text-neutral-200">
+                                        <FaPencil className="m-2" />
+                                    </button>
+                                    <button
+                                        onClick={() => deleteColumn(col.column)}
+                                        className="text-red-500 cursor-pointer transition-all rounded-e-full dark:bg-red-600/20 dark:hover:bg-red-600/30 p-1 px-2 hover:text-red-400">
+                                        <FaTrash className="m-2" />
+                                    </button>
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 

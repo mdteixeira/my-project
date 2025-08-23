@@ -86,12 +86,27 @@ export const App = () => {
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
     const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
 
+    const [localData, setLocalData] = useState<string | null>(null);
+
     useEffect(() => {
-        const storedUser = sessionStorage.getItem('user');
+        const sessionUser = sessionStorage.getItem('user');
         const storedRoom = sessionStorage.getItem('room');
 
+        const storedUser = localStorage.getItem('user');
+        setLocalData(storedUser);
+
         if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
+            try {
+                const parsedUser = JSON.parse(storedUser);
+                setUsername(parsedUser.name);
+                setUserColor(parsedUser.color);
+            } catch (e) {
+                localStorage.removeItem('user');
+            }
+        }
+
+        if (sessionUser) {
+            const parsedUser = JSON.parse(sessionUser);
             setLoggedUser(parsedUser);
             setUsername(parsedUser.name);
             setUserColor(parsedUser.color);
@@ -102,7 +117,7 @@ export const App = () => {
         }
 
         setLoading(false);
-    }, []);
+    }, [handleSettings, handleExport, renderUserForm]);
 
     useEffect(() => {
         const users: { name: string; color: string }[] = [];
@@ -363,6 +378,7 @@ export const App = () => {
                 renderUserForm(
                     userColor,
                     username,
+                    localData,
                     room,
                     setError,
                     setLoggedUser,
