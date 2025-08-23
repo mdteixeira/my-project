@@ -1,16 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import type React from 'react';
+import { useEffect, useState } from 'react';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaGear } from 'react-icons/fa6';
+import { IoExitOutline } from 'react-icons/io5';
+import { PiExport } from 'react-icons/pi';
+import type { Card, CardUser, User } from 'types';
 import { getInitials } from '../utils/getInitials';
 import SocketService from '../utils/Socket';
-import type { Card, CardUser, User } from 'types';
-import { IoExitOutline } from 'react-icons/io5';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { PiExport } from 'react-icons/pi';
-import { FaGear } from 'react-icons/fa6';
+import { type Column, updateColumn } from './columns/columns';
 import { Board } from './components/Board';
-import { exportCardsToCSV } from 'utils/export';
-import { renderUserForm } from './screens/UserScreen';
-import { updateColumn, type Column } from './columns/columns';
+import ExportModal from './components/ExportModal';
 import SettingsModal from './components/settingsModal';
+import { renderUserForm } from './screens/UserScreen';
+import { BiStar } from 'react-icons/bi';
+import { BsStarFill } from 'react-icons/bs';
 
 function UserIcon(props: {
     filteredUser: CardUser | null;
@@ -23,19 +26,24 @@ function UserIcon(props: {
     user: { name: string; color: string };
 }) {
     return (
-        <div
-            className={
-                props.filteredUser?.name === props.user.name
-                    ? `flex items-center border space-x-1.5 bg-${props.user.color}-500 h-12 w-12 rounded-full grid place-items-center ${props.user.color}-700 cursor-pointer`
-                    : `flex items-center space-x-1.5 bg-${props.user.color}-500 h-12 w-12 rounded-full grid place-items-center ${props.user.color}-700 cursor-pointer`
-            }
-            onClick={() => {
-                if (props.filteredUser?.name === props.user.name)
-                    return props.setFilteredUser(null);
+        <div className="group">
+            <div
+                className={
+                    props.filteredUser?.name === props.user.name
+                        ? `text-white ring-2 dark:ring-neutral-200 ring-neutral-500 ring-offset-white dark:ring-offset-slate-800 bg-${props.user.color}-500 h-12 w-12 rounded-full grid place-items-center cursor-pointer hover:ring-offset-1`
+                        : `text-white bg-${props.user.color}-500 hover:ring-2 ring-offset-1 ring-neutral-500 ring-offset-white dark:ring-offset-slate-800 hover:ring-neutral-300 dark:hover:ring-white/50 h-12 w-12 rounded-full grid place-items-center cursor-pointer`
+                }
+                onClick={() => {
+                    if (props.filteredUser?.name === props.user.name)
+                        return props.setFilteredUser(null);
 
-                props.setFilteredUser(props.user);
-            }}>
-            <p>{getInitials(props.user.name)}</p>
+                    props.setFilteredUser(props.user);
+                }}>
+                <p>{getInitials(props.user.name)}</p>
+                <small className="absolute mt-24 px-4 py-1.5 rounded-xl group-hover:grid hidden dark:bg-neutral-800 border bg-neutral-100 text-neutral-700 border-neutral-300 dark:text-white dark:border-neutral-700">
+                    {props.user.name}
+                </small>
+            </div>
         </div>
     );
 }
@@ -63,7 +71,7 @@ function UsersFilter(props: {
 export const App = () => {
     const [cards, setCards] = useState<Card[]>([]);
     const [users, setUsers] = useState<CardUser[]>([]);
-    const [user, setUser] = useState<User | null>(null);
+    const [loggedUser, setLoggedUser] = useState<User | null>(null);
     const [userColor, setUserColor] = useState<string>('');
     const [socket, setSocket] = useState<SocketService | null>(null);
 
@@ -76,6 +84,7 @@ export const App = () => {
     const [filteredUser, setFilteredUser] = useState<CardUser | null>(null);
 
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
+    const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
 
     useEffect(() => {
         const storedUser = sessionStorage.getItem('user');
@@ -83,7 +92,7 @@ export const App = () => {
 
         if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
-            setUser(parsedUser);
+            setLoggedUser(parsedUser);
             setUsername(parsedUser.name);
             setUserColor(parsedUser.color);
         }
@@ -113,13 +122,13 @@ export const App = () => {
     useEffect(() => {
         if (!room) return;
         console.log('trying to connect to room:', room);
-        console.log('User:', user);
-        if (!user) {
+        console.log('User:', loggedUser);
+        if (!loggedUser) {
             console.error('User is not defined. Cannot connect to room.');
             return;
         }
 
-        const socket = new SocketService('http://localhost:3000', room);
+        const socket = new SocketService('http://localhost:1298', room);
 
         setSocket(socket);
 
@@ -132,12 +141,13 @@ export const App = () => {
             setCards(initialCards);
 
             initialCards.forEach((card) => {
-                setUser((prevUser) => {
+                setLoggedUser((prevUser) => {
                     if (prevUser && prevUser.name === card.user.name) {
                         return {
                             ...prevUser,
                             color: card.user.color,
                             hidden: card.user.hidden,
+                            likes: card.likes || [],
                         };
                     }
                     return prevUser;
@@ -191,19 +201,17 @@ export const App = () => {
         return () => {
             socket.disconnect();
         };
-    }, [user && room]);
+    }, [loggedUser && room]);
 
     function handleHide(): void {
-        if (socket && user) {
-            setUser({ ...user, hidden: !user.hidden });
-            socket.updateUser({ ...user, hidden: !user.hidden });
+        if (socket && loggedUser) {
+            setLoggedUser({ ...loggedUser, hidden: !loggedUser.hidden });
+            socket.updateUser({ ...loggedUser, hidden: !loggedUser.hidden });
         }
     }
 
     function handleExport(event): void {
-        event.preventDefault();
-
-        exportCardsToCSV(cards, room);
+        setIsExportModalOpen(!isExportModalOpen);
     }
 
     function handleSettings(event): void {
@@ -212,86 +220,133 @@ export const App = () => {
 
     return (
         <>
-        { isSettingsModalOpen && <SettingsModal handleSettings={handleSettings} /> }
+            {isSettingsModalOpen && <SettingsModal handleSettings={handleSettings} />}
+            {isExportModalOpen && (
+                <ExportModal cards={cards} handleExport={handleExport} />
+            )}
             <span className="bg-red-500 bg-orange-500 bg-amber-500 bg-yellow-500 bg-lime-500 bg-green-500 bg-emerald-500 bg-teal-500 bg-cyan-500 bg-sky-500 bg-blue-500 bg-indigo-500 bg-violet-500 bg-purple-500 bg-fuchsia-500 bg-pink-500 bg-rose-500"></span>
             <span className="text-red-400 text-orange-400 text-amber-400 text-yellow-400 text-lime-400 text-green-400 text-emerald-400 text-teal-400 text-cyan-400 text-sky-400 text-blue-400 text-indigo-400 text-violet-400 text-purple-400 text-fuchsia-400 text-pink-400 text-rose-400"></span>
             {loading ? (
                 <div className="grid place-content-center h-screen overflow-hidden">
                     <div className="animate-spin rounded-full h-24 w-24 border-b-2 border-sky-500"></div>
                 </div>
-            ) : user ? (
-                <div className="w-full text-neutral-50">
+            ) : loggedUser ? (
+                <main className="w-full dark:text-neutral-50 text-neutral-700 min-h-screen flex flex-col">
+                    <h2>
+                        <span className="dark:text-slate-300 font-semibold hidden print:block w-screen py-2.5 mb-5 text-center">
+                            <h2 className="text-2xl">{room}</h2>
+                            <small className="mt-4">Users:</small>
+                            <div className="flex justify-center gap-10">
+                                {users.map((user) => (
+                                    <small
+                                        className={`text-${user.color}-400 font-semibold`}>
+                                        {user.name}
+                                    </small>
+                                ))}
+                            </div>
+                            <hr className="border-slate-200 text-center mx-auto mt-2" />
+                        </span>
+                    </h2>
                     <div
-                        className={`px-2 grid grid-cols-3 items-center justify-items-center py-1.5 bg-slate-500/5`}>
+                        className={`px-2 grid grid-cols-3 items-center justify-items-center py-1.5 bg-slate-500/5 sticky print:hidden`}>
                         <div className="flex gap-4 items-center w-full">
                             <button
                                 onClick={() => {
                                     if (socket) {
                                         sessionStorage.removeItem('user');
                                         sessionStorage.removeItem('room');
-                                        setUser(null);
+                                        setLoggedUser(null);
                                         setRoom('');
                                         setCards([]);
                                         setUsers([]);
                                         socket.leaveRoom();
                                     }
                                 }}
-                                className={`px-2 h-10 w-10 hover:w-22 grid grid-cols-2 group items-center transition-all bg-slate-700/25 cursor-pointer rounded-full hover:bg-red-500/25`}>
+                                className={`px-2 h-10 w-10 hover:w-22 grid grid-cols-2 group items-center transition-all bg-neutral-300/50 dark:bg-slate-700/25 cursor-pointer rounded-full hover:bg-red-500/25`}>
                                 <IoExitOutline
                                     size={24}
                                     className="text-2xl transition-none"></IoExitOutline>
-                                <span className="group-hover:block w-0.5 hidden text-slate-300 font-semibold">
+                                <span className="group-hover:block w-0.5 hidden dark:text-slate-300 font-semibold">
                                     Sair
                                 </span>
                             </button>
-                            <span className="text-slate-300 font-semibold">{room}</span>
+                            <span
+                                className={`text-${loggedUser.color}-400 font-semibold flex items-center gap-2`}>
+                                {loggedUser.name}{' '}
+                                {loggedUser?.superUser && (
+                                    <button
+                                        className={`rounded-full text-amber-500 dark:bg-amber-600/20 bg-amber-200/50`}>
+                                        <BsStarFill className="m-2" />
+                                    </button>
+                                )}
+                            </span>
                         </div>
                         <h2>
-                            <span className={`text-${user.color}-400 font-semibold`}>
-                                {user.name}
+                            <span className="dark:text-slate-300 font-semibold">
+                                {room}
                             </span>
                         </h2>
                         <div className="flex w-full gap-2 justify-end">
                             <button
-                                onClick={handleSettings}
-                                className={`px-2 h-10 w-10 hover:w-42 flex gap-2 justify-end group items-center transition-all bg-slate-700/25 cursor-pointer rounded-full hover:bg-amber-500/25`}>
-                                <span className="group-hover:block group-hover:w-full w-0 hidden text-slate-300 font-semibold overflow-hidden">
-                                    Configurações
+                                onClick={handleHide}
+                                className={
+                                    loggedUser.hidden
+                                        ? `px-2 h-10 w-32 disabled:text-white hover:w-32 flex gap-2 justify-end group items-center transition-all bg-neutral-300/50 dark:bg-slate-700/25 cursor-pointer rounded-full hover:bg-sky-500/25`
+                                        : `px-2 h-10 w-10 disabled:w-32 disabled:text-white hover:w-32 flex gap-2 justify-end group items-center transition-all bg-neutral-300/50 dark:bg-slate-700/25 cursor-pointer rounded-full hover:bg-sky-500/25`
+                                }>
+                                <span
+                                    className={
+                                        loggedUser.hidden
+                                            ? 'group-hover:block group-hover:w-full w-32 dark:text-slate-300 font-semibold'
+                                            : 'group-hover:block group-hover:w-full w-0 hidden dark:text-slate-300 font-semibold overflow-hidden'
+                                    }>
+                                    {loggedUser.hidden ? 'Mostrar' : 'Esconder'}
                                 </span>
                                 <p>
-                                    <FaGear size={24} className="text-white text-2xl" />
+                                    {!loggedUser.hidden ? (
+                                        <FaEyeSlash
+                                            size={24}
+                                            className="dark:text-white text-2xl"
+                                        />
+                                    ) : (
+                                        <FaEye
+                                            size={24}
+                                            className="dark:text-white text-xl"
+                                        />
+                                    )}
                                 </p>
                             </button>
                             <button
                                 onClick={handleExport}
-                                className={`px-2 h-10 w-10 hover:w-30 flex gap-2 justify-end group items-center transition-all bg-slate-700/25 cursor-pointer rounded-full hover:bg-emerald-500/25`}>
-                                <span className="group-hover:block group-hover:w-full w-0 hidden text-slate-300 font-semibold overflow-hidden">
+                                className={`px-2 h-10 w-10 hover:w-30 flex gap-2 justify-end group items-center transition-all bg-neutral-300/50 dark:bg-slate-700/25 cursor-pointer rounded-full hover:bg-emerald-500/25`}>
+                                <span className="group-hover:block group-hover:w-full w-0 hidden dark:text-slate-300 font-semibold overflow-hidden">
                                     Exportar
                                 </span>
                                 <p>
-                                    <PiExport size={24} className="text-white text-2xl" />
+                                    <PiExport
+                                        size={24}
+                                        className="dark:text-white text-2xl"
+                                    />
                                 </p>
                             </button>
                             <button
-                                onClick={handleHide}
-                                className={`px-2 h-10 w-10 hover:w-32 flex gap-2 justify-end group items-center transition-all bg-slate-700/25 cursor-pointer rounded-full hover:bg-sky-500/25`}>
-                                <span className="group-hover:block group-hover:w-full w-0 hidden text-slate-300 font-semibold overflow-hidden">
-                                    {user.hidden ? 'Mostrar' : 'Esconder'}
+                                onClick={handleSettings}
+                                className={`px-2 h-10 w-10 hover:w-42 flex gap-2 justify-end group items-center transition-all bg-neutral-300/50 dark:bg-slate-700/25 cursor-pointer rounded-full hover:bg-amber-500/25`}>
+                                <span className="group-hover:block group-hover:w-full w-0 hidden dark:text-slate-300 font-semibold overflow-hidden">
+                                    Configurações
                                 </span>
                                 <p>
-                                    {!user.hidden ? (
-                                        <FaEyeSlash
-                                            size={24}
-                                            className="text-white text-2xl"
-                                        />
-                                    ) : (
-                                        <FaEye size={24} className="text-white text-xl" />
-                                    )}
+                                    <FaGear
+                                        size={24}
+                                        className="dark:text-white text-2xl"
+                                    />
                                 </p>
                             </button>
                         </div>
                     </div>
-                    <div className="h-20 flex items-center justify-between px-10">
+                    <div
+                        id={'UsersFilter'}
+                        className="print:hidden h-20 flex items-center justify-between px-10">
                         <UsersFilter
                             users={users}
                             filteredUser={filteredUser}
@@ -299,18 +354,18 @@ export const App = () => {
                     </div>
                     <Board
                         cards={cards}
-                        user={user}
+                        loggedUser={loggedUser}
                         socket={socket}
                         filteredUser={filteredUser}
                     />
-                </div>
+                </main>
             ) : (
                 renderUserForm(
                     userColor,
                     username,
                     room,
                     setError,
-                    setUser,
+                    setLoggedUser,
                     setRoom,
                     setUsername,
                     setUserColor,
@@ -321,12 +376,12 @@ export const App = () => {
     );
 };
 
-export const DropIndicator = ({ beforeId, column }) => {
+export const DropIndicator = ({ beforeId, column, headingColor }) => {
     return (
         <div
             data-before={beforeId || '-1'}
             data-column={column}
-            className="my-0.5 h-0.5 w-full bg-violet-400 opacity-0"
+            className={`my-0.5 h-0.5 w-full bg-${headingColor}-500 opacity-0`}
         />
     );
 };

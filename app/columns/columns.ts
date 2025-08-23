@@ -5,10 +5,10 @@ export interface Column {
 }
 
 export const columns = [
-    { name: "Bom e devemos Continuar", column: 'good', color: "text-emerald-300" },
-    { name: "Podemos melhorar", column: 'improve', color: "text-amber-200" },
-    { name: "Devemos parar", column: 'stop', color: "text-red-400" },
-    { name: "Devemos iniciar", column: 'start', color: "text-sky-200" },
+    { name: "Devemos continuar", column: 'continue', color: "emerald", index: 1 },
+    { name: "Devemos Parar", column: 'stop', color: "amber", index: 2 },
+    { name: "Podemos melhorar", column: 'improve', color: "red", index: 3 },
+    { name: "Devemos Iniciar", column: 'start', color: "sky", index: 4 },
 ];
 
 export const updateColumn = (columnName: string, newColumn: Column) => {

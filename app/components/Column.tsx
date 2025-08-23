@@ -1,16 +1,15 @@
-import { useState } from "react";
-import { AddCard } from "./AddCard";
-import { DropIndicator } from "..";
-import { Card } from "./Card";
-import type { Card as ICard, User } from "types";
-
+import { useState } from 'react';
+import type { Card as ICard, User } from 'types';
+import { DropIndicator } from '..';
+import { AddCard } from './AddCard';
+import { Card } from './Card';
 
 interface ColumnProps {
+    index: number;
     title: string;
     headingColor: string;
     cards: Array<ICard>;
     column: string;
-    user: User;
     socket: { updateCard: (id: string, card: any) => void } | null;
     filteredUser?: User | null;
 }
@@ -20,11 +19,14 @@ export const Column: React.FC<ColumnProps> = ({
     headingColor,
     cards,
     column,
-    user,
     socket,
     filteredUser,
+    index,
 }) => {
     const [active, setActive] = useState(false);
+
+    const storedUser = sessionStorage.getItem('user');
+    const loggedUser: User = storedUser ? JSON.parse(storedUser) : null;
 
     const handleDragEnd = (e) => {
         const cardId = e.dataTransfer.getData('cardId');
@@ -36,7 +38,11 @@ export const Column: React.FC<ColumnProps> = ({
         const indicators = getIndicators();
         const { element } = getNearestIndicator(e, indicators);
 
-        if (cardOwner !== user.name) return;
+        if (cardOwner !== loggedUser.name)
+            if (!loggedUser?.superUser) {
+                // alert('Você não pode mover cards de outros usuários!');
+                return;
+            }
 
         const before = element.dataset.before || '-1';
 
@@ -115,30 +121,29 @@ export const Column: React.FC<ColumnProps> = ({
     });
 
     return (
-        <div className="w-full shrink-0 h-full">
+        <div className="w-full">
             <div className="mb-3 flex items-center justify-between">
-                <h3 className={`font-medium ${headingColor}`}>{title}</h3>
+                <h3 className={`font-medium text-${headingColor}-400`}>{title}</h3>
                 <span className="rounded text-sm text-neutral-400">
                     {filteredCards.length}
                 </span>
             </div>
-            <AddCard column={column} user={user} socket={socket} />
+            <AddCard column={column} socket={socket} index={index} />
             <div
                 onDrop={handleDragEnd}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                className={`h-full max-h-[80vh] w-full overflow-y-auto overflow-x-hidden transition-colors ${
-                    active ? 'bg-neutral-800/50' : 'bg-neutral-800/0'
+                className={`h-full w-full transition-colors ${
+                    active ? 'dark:bg-neutral-800/50 bg-neutral-50 ' : 'bg-neutral-800/0'
                 }`}>
                 {finalCards.map((c) => {
-                    return (
-                        <Card
-                            key={c.id}
-                            {...c}
-                        />
-                    );
+                    return <Card socket={socket} key={c.id} {...c} />;
                 })}
-                <DropIndicator beforeId={null} column={column} />
+                <DropIndicator
+                    beforeId={null}
+                    column={column}
+                    headingColor={headingColor}
+                />
             </div>
         </div>
     );
