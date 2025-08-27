@@ -10,4 +10,4 @@ export interface Card {
 
 export interface CardUser { name: string, color: string }
 
-export interface User { name: string; color: string, hidden: boolean; superUser?: boolean }
+export interface User { name: string; color: string, hidden: boolean; superUser?: boolean };
