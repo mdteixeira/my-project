@@ -5,7 +5,9 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import netlifyPlugin from "@netlify/vite-plugin-react-router";
 
 export default defineConfig({
-  plugins: [netlifyPlugin(), tailwindcss(), reactRouter(), tsconfigPaths()],
+  plugins: [netlifyPlugin(), tailwindcss(), reactRouter({
+serverBuildPath: "build/server/server.js"
+}), tsconfigPaths()],
   server: {
     port: 4380
   }
