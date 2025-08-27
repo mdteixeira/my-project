@@ -1,14 +1,14 @@
 {
   "name": "my-project",
   "private": true,
-  "homepage": "https://mdteixeira.github.io/sprint-retro",
-  "predeploy": "npm run build",
-  "deploy": "gh-pages -d build",
+  "homepage": "https://mdteixeira.github.io/my-project",
   "type": "module",
   "scripts": {
     "build": "react-router build",
     "start": "react-router dev --host",
-    "typecheck": "react-router typegen && tsc"
+    "typecheck": "react-router typegen && tsc",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "dependencies": {
     "@react-router/node": "^7.1.5",
